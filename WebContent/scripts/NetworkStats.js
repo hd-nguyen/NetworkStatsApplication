@@ -1,5 +1,5 @@
 //Global Variables
-var sdnControllerURL = 'http://192.168.0.100:8181';
+var sdnControllerURL = 'http://192.168.0.7:8181';
 var sdnControllerUserName = 'admin';
 var sdnControllerPassword = 'admin';
 var base64EncodedPassword = null;
@@ -64,18 +64,35 @@ function populateNetworkNodes() {
 		// 			value.properties.timeStamp.value);
 		// 	$("#nodesDiv").append(div);
 		// });
+		/*Table style*/
+		div = '<div><table class="table table-hover">'
+			+ '<thead><tr>'
+			+ '<th>No.</th>'
+			+ '<th>Node Id</th>'
+			+ '<th>IP address</th>'
+			+ '<th>Type</th>'
+			+ '<th>SW version</th>'
+			+ '<th>N_connectors</th>'
+			+ '<th>Stats</th>'
+			+ '</tr></thead><tbody>';
+
 		var prefix = "flow-node-inventory:"
 		$.each(nodes.node, function(index, node) {
-			// console.log(node[prefix+'hardware']);
-			var div = getNetworkDeviceDiv(
+			// console.log(node);
+			div += getNetworkDeviceDiv(
+				index + 1,
 				node.id,
 				node[prefix+'ip-address'],
 				node[prefix+'hardware'],
 				node[prefix+'software'],
 				node['node-connector'].length
 				);
-			$("#nodesDiv").append(div);
+			/*Thumbnail style*/
+			// $("#nodesDiv").append(div);
 		});
+		div += '</tbody></table></div>';
+		/*Table style*/
+		$("#nodesDiv").append(div);
 
 		$("#nodesDiv").removeClass("hidden").addClass("visible");
 		$("#nodesButton").removeClass("visible").addClass("hidden");
@@ -86,22 +103,38 @@ function populateNetworkNodes() {
 
 // Method to create the network device div programatically
 // No logic here, just plain factory generating divs on supplied inputs
-function getNetworkDeviceDiv(id, ip, type, software, numOfConnectors) {
-	var div = '<div class="col-sm-4 col-md-3"><div class="thumbnail"><br /> <br /> <img src="img/device.png"><div class="caption">';
-	// div += '<h4>' + id + '</h4>';
-	div += '<ul class="list-group">';
-	div += '<li class="list-group-item"><b>Id:</b> ' + id + '</li>';
-	div += '<li class="list-group-item"><b>IP:</b> ' + ip + '</li>';
-	div += '<li class="list-group-item"><b>Type:</b> ' + type + '</li>';
-	div += '<li class="list-group-item"><b>Software version:</b> ' + software + '</li>';
-	div += '<li class="list-group-item"><b>Number of connectors:</b> ' + numOfConnectors + '</li>';
-	div += '</ul><p>';
-	div += '<a href="javascript:showSwitchPortStats(\''
-			+ id + '\')" class="btn btn-success" role="button">Port Stats</a> &nbsp;&nbsp;';
-	div += '<a href="javascript:showSwitchTableStats(\''
-			+ id + '\')" class="btn btn-success" role="button">Table Stats</a>';
-	div += '</p></div></div></div>';
+function getNetworkDeviceDiv(idx, id, ip, type, software, numOfConnectors) {
+	/*Thumbnail style*/
+	// var div = '<div class="col-sm-4 col-md-3"><div class="thumbnail"><br /> <br /> <img src="img/device.png"><div class="caption">';
+	// // div += '<h4>' + id + '</h4>';
+	// div += '<ul class="list-group">';
+	// div += '<li class="list-group-item"><b>Id:</b> ' + id + '</li>';
+	// div += '<li class="list-group-item"><b>IP:</b> ' + ip + '</li>';
+	// div += '<li class="list-group-item"><b>Type:</b> ' + type + '</li>';
+	// div += '<li class="list-group-item"><b>Software version:</b> ' + software + '</li>';
+	// div += '<li class="list-group-item"><b>Number of connectors:</b> ' + numOfConnectors + '</li>';
+	// div += '</ul><p>';
+	// div += '<a href="javascript:showSwitchPortStats(\''
+	// 		+ id + '\')" class="btn btn-success" role="button">Port Stats</a> &nbsp;&nbsp;';
+	// div += '<a href="javascript:showSwitchTableStats(\''
+	// 		+ id + '\')" class="btn btn-success" role="button">Table Stats</a>';
+	// div += '</p></div></div></div>';
 
+	/*Table style*/
+	div = '<tr>'
+		+ '<td>'+idx+'</td>'
+		+ '<td>'+id+'</td>'
+		+ '<td>'+ip+'</td>'
+		+ '<td>'+type+'</td>'
+		+ '<td>'+software+'</td>'
+		+ '<td>'+numOfConnectors+'</td>'
+		+ '<td>'
+			+'<a href="javascript:showSwitchPortStats(\''
+			+ id + '\')" class="btn btn-success btn-sm" role="button">Port</a> &nbsp;'
+			+'<a href="javascript:showSwitchTableStats(\''
+			+ id + '\')" class="btn btn-success btn-sm" role="button">Table</a> &nbsp;'
+			+'</td>'
+		+ '</tr>';
 	return div;
 }
 
@@ -261,7 +294,7 @@ function showSwitchTableStats(id) {
 						+ '</tr></thead><tbody>';
 				$.each(flows, function(ind, flow) {
 					flowMatch = flow.match;
-					console.log(flow);
+					// console.log(flow);
 					flowActs = flow.instructions.instruction[0]['apply-actions'];
 					flowStats = flow['opendaylight-flow-statistics:flow-statistics'];
 					finalDiv += '<tr>'
@@ -274,24 +307,28 @@ function showSwitchTableStats(id) {
 							+ '<td>'+flow['idle-timeout']+'</td>';
 							if(flowMatch['in-port'] != undefined){
 								// console.log(flows);
-								finalDiv += '<td>'+flowMatch['in-port'].split(':')[2]+'</td>';
+								if(flowMatch['in-port'].includes('openflow'))
+									finalDiv += '<td>'+flowMatch['in-port'].split(':')[2]+'</td>';
+								else
+									finalDiv += '<td>'+flowMatch['in-port']+'</td>';
 							} else {
-								finalDiv += '<td></td>'
+								finalDiv += '<td>N/A/td>'
 							}
-							finalDiv += '<td>'+""+'</td>'
-									+ '<td>'+""+'</td>'
-									+ '<td>'+flowActs.action[0]['output-action']['output-node-connector'];
-							if(flowActs.action.length > 1){
-								$.each(flowActs.action, function(k,action){
-									if(k>0){
-										finalDiv += ', ' + action['output-action']['output-node-connector'];
+							var addr = getAddressesInFlow(flowMatch);
+							finalDiv += '<td>'+ addr['src'] + '</td>'
+									+ '<td>'+ addr['dst'] + '</td>'
+									+ '<td>'+ flowActs.action[0]['output-action']['output-node-connector'];
+									if(flowActs.action.length > 1){
+										$.each(flowActs.action, function(k,action){
+											if(k>0){
+												finalDiv += ', ' + action['output-action']['output-node-connector'];
+											}
+										});
 									}
-								});
-							}
-							finalDiv += '</td>';
-					finalDiv += '</tr>';	
+									finalDiv += '</td>';
+							finalDiv += '</tr>';	
 				});
-				finalDiv += '</tr></tbody></table></div>';
+				finalDiv += '</tbody></table></div>';
 			}
 		}
 
@@ -303,6 +340,32 @@ function showSwitchTableStats(id) {
 	}
 }
 
+function getAddressesInFlow(flowMatch){
+	var addr = {'src':'N/A', 'dst':'N/A'};
+	if(flowMatch['ethernet-match'] != undefined){
+		ethMatch = flowMatch['ethernet-match'];
+		if(ethMatch['ethernet-source'] != undefined){
+			addr['dst'] = ethMatch['ethernet-source'].address;
+		}
+		if(ethMatch['ethernet-destination'] != undefined){
+			addr['dst'] = ethMatch['ethernet-destination'].address;
+		}
+	}
+	if(flowMatch['ipv6-source'] != undefined){
+		addr['dst'] = flowMatch['ipv6-source'];
+	}
+	if(flowMatch['ipv6-destination'] != undefined){
+		addr['dst'] = flowMatch['ipv6-destination'];
+	}
+
+	if(flowMatch['ipv4-source'] != undefined){
+		addr['dst'] = flowMatch['ipv4-source'];
+	}
+	if(flowMatch['ipv4-destination'] != undefined){
+		addr['dst'] = flowMatch['ipv4-destination'];
+	}
+	return addr;
+}
 // Utility function to check not null user name password
 function ifCredentialsNotNull(username, password) {
 	if (username != null && password != null && username != ''
