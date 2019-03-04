@@ -1,7 +1,7 @@
 //Global Variables
-var sdnControllerURL = 'http://192.168.0.7:8181';
-var sdnControllerUserName = 'admin';
-var sdnControllerPassword = 'admin';
+var sdnControllerURL = null;
+var sdnControllerUserName = null;
+var sdnControllerPassword = null;
 var base64EncodedPassword = null;
 
 // Get the values supplied
@@ -10,16 +10,20 @@ var base64EncodedPassword = null;
 // Show Network Devices
 function trackNetworkStatisticsClicked() {
 
-	// sdnControllerURL = $("#url").val();
-	// sdnControllerUserName = $("#username").val();
-	// sdnControllerPassword = $("#password").val();
-	base64EncodedPassword = "Basic "
-			+ btoa(sdnControllerUserName + ":" + sdnControllerPassword);
+	// Test
+	// sdnControllerURL = 'http://192.168.0.100:8181';
+	// sdnControllerUserName = 'admin';
+	// sdnControllerPassword = 'admin';
 
-	console.log(sdnControllerURL);
-	console.log(sdnControllerUserName);
-	console.log(sdnControllerPassword);
-	console.log(base64EncodedPassword);
+	sdnControllerURL = $("#url").val();
+	sdnControllerUserName = $("#username").val();
+	sdnControllerPassword = $("#password").val();
+	base64EncodedPassword = "Basic " + btoa(sdnControllerUserName + ":" + sdnControllerPassword);
+
+	// console.log(sdnControllerURL);
+	// console.log(sdnControllerUserName);
+	// console.log(sdnControllerPassword);
+	// console.log(base64EncodedPassword);
 
 	if (ifCredentialsNotNull(sdnControllerUserName, sdnControllerPassword)) {
 		populateNetworkNodes();
@@ -217,6 +221,34 @@ function getPortsDiv(portName, portNumber, mac, receivePackets, transmitPackets,
 	return div;
 }
 
+function deleteFlowByID(nodeId, tableId, flowId) {
+	$.ajax({
+		url : sdnControllerURL
+				// + "/controller/nb/v2/statistics/default/table/node/OF/"
+				+ "/restconf/config/opendaylight-inventory:nodes/node/"
+				+ nodeId
+				+ "/flow-node-inventory:table/"
+				+ tableId
+				+ "/flow/"
+				+ flowId,
+		type : "DELETE",
+		async : false,
+		//contentType : "application/json",
+		success : function(data, textStatus, jqXHR) {
+			//console.log(data.node[0]['flow-node-inventory:table']);
+			alert('Deleted Flow '+ flowId);
+		},
+		error : function(jqXHR, textStatus, errorThrown) {
+			console.log("flowId:" + flowId);
+			alert(errorThrown);
+		},
+		beforeSend : function(xhr) {
+			// Default Base64 Encoding for (admin/admin)
+			xhr.setRequestHeader("Authorization", base64EncodedPassword);
+		}
+	});
+}
+
 // Fetch table stats for a node from OpenDaylight
 // Populate table stats section
 function showSwitchTableStats(id) {
@@ -280,6 +312,7 @@ function showSwitchTableStats(id) {
 			if(flows.length > 0){
 				finalDiv += '<div><table class="table table-hover" style="font-size: smaller">'
 						+ '<thead><tr>'
+						+ '<th>Ops</th>'
 						+ '<th>Flow Id</th>'
 						+ '<th>Cookie</th>'
 						+ '<th>Duration(s)</th>'
@@ -297,7 +330,11 @@ function showSwitchTableStats(id) {
 					// console.log(flow);
 					flowActs = flow.instructions.instruction[0]['apply-actions'];
 					flowStats = flow['opendaylight-flow-statistics:flow-statistics'];
+					//javascript:deleteFlowByID(\''+ id + '\'','\''+ firstTable.id + '\'', '\''+flow.id + '\')
 					finalDiv += '<tr>'
+							+ '<td>'
+							+ '<a href="javascript:deleteFlowByID(\''+ id + '\',\''+ firstTable.id + '\',\''+ flow.id + '\')"'
+							+ ' class="btn btn-danger btn-sm" role="button">Del</a> &nbsp;</td>'
 							+ '<td>'+flow.id+'</td>'
 							+ '<td>'+flow.cookie+'</td>'
 							+ '<td>'+flowStats.duration.second+'</td>'
@@ -312,7 +349,7 @@ function showSwitchTableStats(id) {
 								else
 									finalDiv += '<td>'+flowMatch['in-port']+'</td>';
 							} else {
-								finalDiv += '<td>N/A/td>'
+								finalDiv += '<td>N/A</td>'
 							}
 							var addr = getAddressesInFlow(flowMatch);
 							finalDiv += '<td>'+ addr['src'] + '</td>'
